@@ -4,7 +4,6 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 
-
 export default class Project extends Base {
 
   /**
@@ -80,7 +79,8 @@ export default class Project extends Base {
 
       // find connected ports
       var selectedPort: string = '';
-      switch (this.getUserPlatform()) {
+      let _platform = this.getUserPlatform();
+      switch (_platform) {
         case 'win32':
           selectedPort = await vscode.window.showInputBox({
             ignoreFocusOut: true,
@@ -124,10 +124,27 @@ export default class Project extends Base {
         return;
       }
 
-      if (!fs.existsSync(selectedPort)) {
+      if (!fs.existsSync(selectedPort) && _platform !== 'win32') {
         vscode.window.showErrorMessage("Port not exist, please connect device and try again!");
         this.statusDone();
         return;
+      } else if (_platform === 'win32') {
+        try {
+          // Test we can access this
+          var serialport = require("serialport");
+          var SerialPort = serialport.SerialPort;
+          var serialPort = new SerialPort("/dev/cu.usbmodem14131", {
+            baudrate: 9600,
+            parser: serialport.parsers.readline("\n")
+          });
+          if (!serialPort.readable) {
+            throw 'Cannot access serial port';
+          }
+        } catch (exception) {
+          console.log(exception);
+          this.statusDone();
+          return;
+        }
       }
 
       let selectedBaudRate = parseInt(await vscode.window.showQuickPick([
